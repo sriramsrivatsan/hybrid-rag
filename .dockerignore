@@ -1,0 +1,17 @@
+.git
+.vscode
+.gitignore
+.gitattributes
+CHANGELOG.md
+.streamlit
+.github
+.devcontainer
+build
+node_modules
+web_scraoing_code.ipynb
+design
+examples
+logs
+mlruns
+notebooks
+README.md
