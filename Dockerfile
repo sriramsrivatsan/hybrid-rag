@@ -1,69 +1,67 @@
 ###################################### Stage 1: BUILD ######################################
 
-# Use Python base image
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
-# Set working directory
 WORKDIR /build
 
-# Install system dependencies for Poetry
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+# Install system dependencies
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
         ffmpeg \
         make \
-        build-essential && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    pip install poetry
+        build-essential \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy project files into the container
-# hybrid_rag: SIZE: 0.19MB
+# Install Poetry
+RUN pip install --no-cache-dir poetry \
+    && poetry --version
+
+# Copy project files
 COPY hybrid_rag hybrid_rag
 COPY tests tests
 COPY .pre-commit-config.yaml .pre-commit-config.yaml
 COPY Makefile Makefile
-COPY poetry.toml poetry.toml
 COPY pyproject.toml pyproject.toml
+COPY poetry.lock* ./
 
-# Optional: If No workflows/cicd setup for build test and deploy.. then use make install, make install-precommit, make run-precommit, make test, make clean commands
-# to test your code locally.
-
-# Build the wheel file using the Makefile
+# Build wheel
 RUN make build
 
-###################################### Stage 2: RUNTIME ###########################################
+###################################### Stage 2: RUNTIME ######################################
+
 FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /Hybrid-Search-RAG
 
-# Install system dependencies for Poetry and Supervisor
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    supervisor && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+# Install runtime system dependencies
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        supervisor \
+        ffmpeg \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
+# Copy wheel from builder
 COPY --from=builder /build/dist/*.whl .
 
-# Install the wheel file && remove the wheel after installation, to save the memory space of virtual space of 
-RUN pip install *.whl && rm -rf *.whl
+# Install wheel
+RUN pip install --no-cache-dir *.whl && rm -f *.whl
 
 ##################
-# chat_restapi -> SIZE: 0MB
-# chat_streamlit_app -> SIZE: 0.23MB
+# App files
 ##################
-
-# Copy project files into the container
 COPY chat_restapi chat_restapi
 COPY chat_streamlit_app chat_streamlit_app
 COPY .env.example chat_restapi/.env.example
 COPY .env.example chat_streamlit_app/.env.example
 
-#Supervisord.conf COPY
+# Supervisor config
 RUN mkdir -p /etc/supervisor/conf.d
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Expose ports for FastAPI and Streamlit
+# Expose ports
 EXPOSE 8000 8501
 
-# Run Supervisor to manage multiple processes (FastAPI + Streamlit)
+# Start Supervisor
 CMD ["supervisord", "-n"]
