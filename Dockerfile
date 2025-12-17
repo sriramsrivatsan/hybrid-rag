@@ -7,10 +7,13 @@ FROM python:3.11-slim as builder
 WORKDIR /build
 
 # Install system dependencies for Poetry
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    apt-get install ffmpeg -y \
-    make build-essential && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* && \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ffmpeg \
+        make \
+        build-essential && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
     pip install poetry
 
 # Copy project files into the container
